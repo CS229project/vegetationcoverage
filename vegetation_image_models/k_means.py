@@ -95,15 +95,19 @@ def update_centroids(centroids, image, max_iter=30, print_every=10):
             distances_stack.append(distances)
 
         i += 1
-        pixel_distances = np.stack(distances_stack, axis=2)   #Gives   1424, 1661, 16, 1
-        pixel_distances = np.squeeze(pixel_distances, axis=3) #Makes   1424, 1661, 16
-        #print((pixel_distances.sum(axis=2)))
-        pixels_group = np.argmin(pixel_distances, axis=2, keepdims=True) #Gives 128, 128, 1 (group)
+        pixel_distances = np.stack(distances_stack, axis=2)              #Gives   1424, 1661, 16, 1
+        pixel_distances = np.squeeze(pixel_distances, axis=3)            #Makes   1424, 1661, 16
+        print(pixel_distances.sum())
+        pixels_group = np.argmin(pixel_distances, axis=2, keepdims=True) #Gives 1424, 1661, 1 (group)
+        print(np.unique(pixels_group))
+
+        #if (i==2): exit()
 
         #Recalculate the centroids
         #Get all the pixels in the same group
         new_centroids = []
         for group_z in range(centroids.shape[0]):
+            #group_z_indices = np.transpose((pixels_group==group_z).nonzero())
             group_z_indices = np.transpose((pixels_group==group_z).nonzero())
 
             group_pixels = []
@@ -111,6 +115,9 @@ def update_centroids(centroids, image, max_iter=30, print_every=10):
                 #Collate all the pixel images
                 group_pixels.append(image[group_z_index[0],group_z_index[1],:])
         
+            if (len(group_pixels) == 0):
+                group_pixels = [[0,0,0]]
+
             group_pixels = np.array(group_pixels)
             print(group_pixels.shape)
             new_centroids.append(np.mean(group_pixels,axis=0))
@@ -182,20 +189,21 @@ def main(args):
     savepath = os.path.join('.', 'orig_small.png')
     plt.savefig(savepath, transparent=True, format='png', bbox_inches='tight')
 
+
+    #Scatter plot the image to check if we can identify clusters
     scatterData = np.reshape(image, (image.shape[0]*image.shape[1],image.shape[2]))
-    print(scatterData.shape)
-    
     plt.figure(figure_idx)
     figure_idx += 1
     plt.title('Image Scatter plot')
     plt.axis('off')
-    plt.scatter(scatterData[:,0],scatterData[:,1],scatterData[:,2], linewidths=1, alpha=.7,
-           edgecolor='k',
-           c=scatterData[:,2])
-    savepath = os.path.join('.', 'scatter.png')
-    plt.savefig(savepath, transparent=True, format='png', bbox_inches='tight')
+    plt.axes(projection = '3d', proj_type = 'ortho')
+    plt.xlabel('Red')
+    plt.ylabel('Green')
 
-    
+    plt.scatter(scatterData[:,0]/255,scatterData[:,1]/255,scatterData[:,2]/255, c=scatterData/255)
+    savepath = os.path.join('.', 'scatter.png')
+    plt.savefig(savepath, transparent=False, format='png', bbox_inches='tight')
+
     # Initialize centroids
     print('[INFO] Centroids initialized')
     centroids_init = init_centroids(num_clusters, image)
@@ -238,13 +246,14 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_path', default='../images/landsat_manaus_2001.tif',
+    parser.add_argument('--data_path', default='../images/NDVI_landsat_manaus_2001.tif',
+    #parser.add_argument('--data_path', default='./peppers-small.tiff',
                         help='Path to small image')
-    parser.add_argument('--large_path', default='../images/landsat_manaus_2001.tif',
+    parser.add_argument('--large_path', default='../images/NDVI_landsat_manaus_2023.tif',
                         help='Path to large image')
     parser.add_argument('--max_iter', type=int, default=30,
                         help='Maximum number of iterations')
-    parser.add_argument('--num_clusters', type=int, default=8,
+    parser.add_argument('--num_clusters', type=int, default=12,
                         help='Number of centroids/clusters')
     parser.add_argument('--print_every', type=int, default=10,
                         help='Iteration print frequency')
