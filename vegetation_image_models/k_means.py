@@ -84,6 +84,7 @@ def update_centroids(centroids, image, max_iter=30, print_every=10):
     #for the max number of iterations
     i = 0
     H,W,C = image.shape
+    prev_distance = 0
 
     #max_iter = 1
     while i < max_iter:
@@ -95,19 +96,21 @@ def update_centroids(centroids, image, max_iter=30, print_every=10):
             distances_stack.append(distances)
 
         i += 1
-        pixel_distances = np.stack(distances_stack, axis=2)              #Gives   1424, 1661, 16, 1
-        pixel_distances = np.squeeze(pixel_distances, axis=3)            #Makes   1424, 1661, 16
-        print(pixel_distances.sum())
-        pixels_group = np.argmin(pixel_distances, axis=2, keepdims=True) #Gives 1424, 1661, 1 (group)
-        print(np.unique(pixels_group))
+        pixel_distances = np.stack(distances_stack, axis=2)                  #Gives   844, 1074, 16, 1
+        pixel_distances = np.squeeze(pixel_distances, axis=3)                #Makes   844, 1075, 16
+        pixel_distances_min = np.min(pixel_distances, axis=2,keepdims=True)  #Take the lowest distance for each pixel
 
-        #if (i==2): exit()
+        if prev_distance != pixel_distances_min.sum():
+            prev_distance = pixel_distances_min.sum()
+        else:
+            break
+
+        pixels_group = np.argmin(pixel_distances, axis=2, keepdims=True) #Gives 1424, 1661, 1 (group)
 
         #Recalculate the centroids
         #Get all the pixels in the same group
         new_centroids = []
         for group_z in range(centroids.shape[0]):
-            #group_z_indices = np.transpose((pixels_group==group_z).nonzero())
             group_z_indices = np.transpose((pixels_group==group_z).nonzero())
 
             group_pixels = []
@@ -119,18 +122,19 @@ def update_centroids(centroids, image, max_iter=30, print_every=10):
                 group_pixels = [[0,0,0]]
 
             group_pixels = np.array(group_pixels)
-            print(group_pixels.shape)
             new_centroids.append(np.mean(group_pixels,axis=0))
         centroids = np.array(new_centroids)
          
+        if ((i % print_every) == 0): print(f'Iteration {i} Heterogeneity Measure: {prev_distance}')
+
     new_centroids = centroids
-    print('Iterations Completed:', i)
+    print(f'Iterations Completed:{i} Heterogeneity Measure: {prev_distance}')
     #raise NotImplementedError('update_centroids function not implemented')
     # *** END YOUR CODE ***
 
     return new_centroids
 
-def update_image(image, centroids):
+def update_image(image, centroids, image_name):
     """
     Update RGB values of pixels in `image` by finding
     the closest among the `centroids`
@@ -141,6 +145,8 @@ def update_image(image, centroids):
         (H, W, C) image represented as an nparray
     centroids : int
         The centroids stored as an nparray
+    image_name : string
+        The name of the image to store the data
 
     Returns
     -------
@@ -155,14 +161,29 @@ def update_image(image, centroids):
         distances = np.linalg.norm(centroid - image, axis=2, keepdims=True)
         distances_stack.append(distances)
 
-    pixel_distances = np.stack(distances_stack, axis=2)   #Gives   512, 512, 16, 1
-    pixel_distances = np.squeeze(pixel_distances, axis=3) #Makes   512, 512, 16
-    pixels_group = np.argmin(pixel_distances, axis=2, keepdims=True) #Gives 512, 512, 1 (group)
+    pixel_distances = np.stack(distances_stack, axis=2)              #Gives   844, 1074, 16, 1
+    pixel_distances = np.squeeze(pixel_distances, axis=3)            #Makes   844, 1074, 16
+    pixels_group = np.argmin(pixel_distances, axis=2, keepdims=True) #Gives   844, 1074, 1 (group)
+
+    f = open("../data/k_" + str(centroids.shape[0]) + "_" + image_name + ".csv", "w")
+    f.write("group, pixel_position_encoding\n")
     
+    total_pixels = image.shape[0]*image.shape[1]
     for i in range(pixels_group.shape[0]):
         for j in range(pixels_group.shape[1]):
             image[i,j] = centroids[pixels_group[i,j,0]]
+            
+            #Write the labels and the positional data
+            pixel_position = (i+1)*(j+1)
+            encoding = np.sin(pixel_position*np.pi*((2*total_pixels)**-1)) #Positional encoding from 0 to 1 using sin
+            f.write(str(pixels_group[i,j,0]) + "," + str(encoding) + "\n")
 
+    f.close()
+
+    #Save the centroids
+    np.savetxt("../data/k_" + str(centroids.shape[0]) + "_centroids_rgb_values.dat", centroids)
+
+    
     # *** END YOUR CODE ***
 
     return image
@@ -177,6 +198,7 @@ def main(args):
     image_path_large = args.large_path
     num_clusters = args.num_clusters
     figure_idx = 0
+    image_name = image_path_large.split('/')[-1].split('.')[0]
 
     # Load small image
     image = np.copy(mpimg.imread(image_path_small))
@@ -230,14 +252,14 @@ def main(args):
     print(25 * '=')
     print('Updating large image ...')
     print(25 * '=')
-    image_clustered = update_image(image, centroids)
+    image_clustered = update_image(image, centroids, image_name)
 
     plt.figure(figure_idx)
     figure_idx += 1
     plt.imshow(image_clustered)
     plt.title('Updated large image')
     plt.axis('off')
-    savepath = os.path.join('.', 'updated_large.png')
+    savepath = os.path.join('.', 'k_'+ str(num_clusters) + '_updated_large.png')
     plt.savefig(fname=savepath, transparent=True, format='png', bbox_inches='tight')
 
 
@@ -247,13 +269,12 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_path', default='../images/NDVI_landsat_manaus_2001.tif',
-    #parser.add_argument('--data_path', default='./peppers-small.tiff',
-                        help='Path to small image')
-    parser.add_argument('--large_path', default='../images/NDVI_landsat_manaus_2023.tif',
-                        help='Path to large image')
-    parser.add_argument('--max_iter', type=int, default=30,
+                        help='Path to base image')
+    parser.add_argument('--large_path', default='../images/NDVI_landsat_manaus_2004.tif',
+                        help='Path to later image')
+    parser.add_argument('--max_iter', type=int, default=150,
                         help='Maximum number of iterations')
-    parser.add_argument('--num_clusters', type=int, default=12,
+    parser.add_argument('--num_clusters', type=int, default=4,
                         help='Number of centroids/clusters')
     parser.add_argument('--print_every', type=int, default=10,
                         help='Iteration print frequency')
