@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import random
+import pandas as pd
 
 
 def init_centroids(num_clusters, image):
@@ -134,7 +135,7 @@ def update_centroids(centroids, image, max_iter=30, print_every=10):
 
     return new_centroids
 
-def update_image(image, centroids, image_name):
+def generate_image_and_data(image, centroids, image_name, year, year_csv_value, f):
     """
     Update RGB values of pixels in `image` by finding
     the closest among the `centroids`
@@ -147,6 +148,12 @@ def update_image(image, centroids, image_name):
         The centroids stored as an nparray
     image_name : string
         The name of the image to store the data
+    year: string
+        The year for which the data is being labeled
+    year_csv_value: string
+        Values for emissions for that particular year
+    f: filehandler
+        Filehandler to write the data
 
     Returns
     -------
@@ -156,7 +163,6 @@ def update_image(image, centroids, image_name):
 
     # *** START YOUR CODE ***
     distances_stack = []
-    print(centroids)
     for centroid in centroids:
         distances = np.linalg.norm(centroid - image, axis=2, keepdims=True)
         distances_stack.append(distances)
@@ -165,8 +171,7 @@ def update_image(image, centroids, image_name):
     pixel_distances = np.squeeze(pixel_distances, axis=3)            #Makes   844, 1074, 16
     pixels_group = np.argmin(pixel_distances, axis=2, keepdims=True) #Gives   844, 1074, 1 (group)
 
-    f = open("../data/k_" + str(centroids.shape[0]) + "_" + image_name + ".csv", "w")
-    f.write("group, pixel_position_encoding\n")
+
     
     total_pixels = image.shape[0]*image.shape[1]
     for i in range(pixels_group.shape[0]):
@@ -176,12 +181,7 @@ def update_image(image, centroids, image_name):
             #Write the labels and the positional data
             pixel_position = (i+1)*(j+1)
             encoding = np.sin(pixel_position*np.pi*((2*total_pixels)**-1)) #Positional encoding from 0 to 1 using sin
-            f.write(str(pixels_group[i,j,0]) + "," + str(encoding) + "\n")
-
-    f.close()
-
-    #Save the centroids
-    np.savetxt("../data/k_" + str(centroids.shape[0]) + "_centroids_rgb_values.dat", centroids)
+            f.write(f'{year},{str(pixels_group[i,j,0])},{str(encoding)},{year_csv_value}\n')
 
     
     # *** END YOUR CODE ***
@@ -191,6 +191,14 @@ def update_image(image, centroids, image_name):
 
 def main(args):
 
+    #Open data for carbon dioxide, methane, ntrs_oxide and srfce_tmp
+    #We have data available till 2021
+    df_cs = pd.read_csv('../emmissions_data/clean_data/crbn_dioxide_complete.csv', header=None).to_numpy()
+    df_mt = pd.read_csv('../emmissions_data/clean_data/methane_complete.csv', header=None).to_numpy()
+    df_ntrs = pd.read_csv('../emmissions_data/clean_data/ntrs_oxide_complete.csv', header=None).to_numpy()
+    df_st = pd.read_csv('../emmissions_data/clean_data/srfce_tmp_afft_complete.csv', header=None).to_numpy()
+
+
     # Setup
     max_iter = args.max_iter
     print_every = args.print_every
@@ -199,6 +207,16 @@ def main(args):
     num_clusters = args.num_clusters
     figure_idx = 0
     image_name = image_path_large.split('/')[-1].split('.')[0]
+    base_year = image_path_small.split('_')[-1].split('.')[0]
+
+
+    #Normalize the values
+    df_cs[:,1] = df_cs[:,1] / df_cs[:,1].max(axis=0)
+    #Convert iteger to float
+    df_mt = df_mt.astype(float)
+    df_mt[:,1] = df_mt[:,1] / df_mt[:,1].max(axis=0)
+    df_ntrs[:,1] = df_ntrs[:,1] / df_ntrs[:,1].max(axis=0)
+    df_st[:,1] = df_st[:,1] / df_st[:,1].max(axis=0)
 
     # Load small image
     image = np.copy(mpimg.imread(image_path_small))
@@ -248,19 +266,62 @@ def main(args):
     savepath = os.path.join('.', 'orig_large.png')
     plt.savefig(fname=savepath, transparent=True, format='png', bbox_inches='tight')
 
-    # Update large image with centroids calculated on small image
-    print(25 * '=')
-    print('Updating large image ...')
-    print(25 * '=')
-    image_clustered = update_image(image, centroids, image_name)
 
-    plt.figure(figure_idx)
-    figure_idx += 1
-    plt.imshow(image_clustered)
-    plt.title('Updated large image')
-    plt.axis('off')
-    savepath = os.path.join('.', 'k_'+ str(num_clusters) + '_updated_large.png')
-    plt.savefig(fname=savepath, transparent=True, format='png', bbox_inches='tight')
+
+    #Start writing the data as well
+    f = open("../data/k_" + str(centroids.shape[0]) + "_data.csv", "w")
+    f.write("year,group,pixel_position_encoding,crbn_dioxide,methane,ntrs_oxide,srfce_tmp\n")
+
+    #Run through all the images and generate the dataset
+    basepath = '../images/'
+    with os.scandir(basepath) as entries:
+        for entry in entries:
+            if entry.is_file():
+                if (entry.name != ".DS_Store"):
+                    year = entry.name.split('.')[0].split('_')[-1]
+                    image_name = basepath + entry.name
+
+                    #year_csv_value = df_cs
+                    year_csv_value = str(df_cs[(df_cs[:,0] == int(year)).nonzero()][0,1])
+                    year_csv_value = year_csv_value + ',' + str(df_mt[(df_mt[:,0] == int(year)).nonzero()][0,1])
+                    year_csv_value = year_csv_value + ',' + str(df_ntrs[(df_ntrs[:,0] == int(year)).nonzero()][0,1])
+                    year_csv_value = year_csv_value + ',' + str(df_st[(df_st[:,0] == int(year)).nonzero()][0,1])
+
+
+                    # Load large image
+                    image = np.copy(mpimg.imread(image_name))
+                    image.setflags(write=1)
+                    print('[INFO] Loaded large image with shape: {}'.format(np.shape(image)))
+                    plt.figure(figure_idx)
+                    figure_idx += 1
+                    plt.imshow(image)
+                    plt.title('Original large image')
+                    plt.axis('off')
+                    savepath = os.path.join('.', 'orig_large.png')
+                    plt.savefig(fname=savepath, transparent=True, format='png', bbox_inches='tight')
+
+
+
+                    # Update large image with centroids calculated on small image
+                    print(25 * '=')
+                    print('Updating large image ...' + image_name)
+                    print(25 * '=')
+                    image_clustered = generate_image_and_data(image, centroids, image_name, year, year_csv_value, f)
+
+                    plt.figure(figure_idx)
+                    figure_idx += 1
+                    plt.imshow(image_clustered)
+                    plt.title('Updated large image')
+                    plt.axis('off')
+                    savepath = os.path.join('.', 'k_'+ str(num_clusters) + '_' + year + '_updated_large_' + base_year + '_base.png')
+                    plt.savefig(fname=savepath, transparent=True, format='png', bbox_inches='tight')
+
+    f.close()
+    #Save the centroids
+    np.savetxt("../data/k_" + str(centroids.shape[0]) + "_centroids_rgb_values.dat", centroids)
+
+
+
 
 
     print('\nCOMPLETE')
@@ -270,7 +331,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_path', default='../images/NDVI_landsat_manaus_2001.tif',
                         help='Path to base image')
-    parser.add_argument('--large_path', default='../images/NDVI_landsat_manaus_2004.tif',
+    parser.add_argument('--large_path', default='../images/NDVI_landsat_manaus_2021.tif',
                         help='Path to later image')
     parser.add_argument('--max_iter', type=int, default=150,
                         help='Maximum number of iterations')
