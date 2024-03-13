@@ -10,7 +10,7 @@ var geometry = /* color: #d63000 */ee.Geometry.Polygon(
     [-59.84786526380982, -2.9342985158694614],
     [-60.1266433399817, -2.9370414934689872]]]);
 
-var startYear = 2001;
+var startYear = 2000;
 var type = "NDVI";
 
 
@@ -87,7 +87,7 @@ folder: 'my-drive',
 fileNamePrefix: type + "_landsat_manaus_" + startYear,
 crs: projection.crs,
 crsTransform: projection.transform,
-scale: 30
+scale: 100
 });
 
 startYear = startYear + 1;
