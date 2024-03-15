@@ -117,12 +117,12 @@ def experiment(train_paths: dict, eval_paths: dict, lambds: list, ks: list) -> d
 
             # Plot the results
             plot = axis[0, iteration]
-            plot.plot(ks, mses, label="MSE")
+            plot.plot(ks, mses)
             plot.plot(lowest_mse[1], lowest_mse[2], 'g*', label="Lowest MSE = " + str(round(lowest_mse[2], 3)))
             plot.set_title("MSE vs k for lambda=" + str(lambd))
             plot.legend()
             plot = axis[1, iteration]
-            plot.plot(ks, mapes, label="MAPE")
+            plot.plot(ks, mapes)
             plot.plot(lowest_mape[1], lowest_mape[3], 'g*', label="Lowest MAPE = " + str(round(lowest_mape[3], 3)))
             plot.set_title("MAPE vs k for lambd=" + str(lambd))
             plot.legend()
@@ -163,7 +163,7 @@ def plot_best_models(train_paths: dict, eval_paths: dict, best_hyperparams: dict
         plot.set_title(ghg + " Best Fit, MAPE=" + "%.2f" % mape)
         plot.legend()
 
-    plt.savefig("best_emissions_data_fits.png")
+    plt.savefig("Best Emissions Data Fits.png")
 
 
 if __name__ == "__main__":
@@ -179,6 +179,8 @@ if __name__ == "__main__":
         "Nitrous Oxide": 'clean_data/most_recent_split/ntrs_oxide_val.csv',
         "Surface Temp. Effect": 'clean_data/most_recent_split/srfce_tmp_afft_val.csv'
     }
-    lambds = [0.001, 0.01, 0.1, 0.25, 0.5, 1]
+    # lambds = [0.001, 0.01, 0.1, 0.25, 0.5, 1]
+    lambds = [1, 2, 3, 4, 5, 6]
     ks = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    experiment(train_paths, eval_paths, lambds, ks)
+    results = experiment(train_paths, eval_paths, lambds, ks)
+    plot_best_models(train_paths, eval_paths, results)
