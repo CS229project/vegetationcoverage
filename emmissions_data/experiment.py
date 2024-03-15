@@ -7,6 +7,7 @@ We evaluate the performance of the models using the mean squared error
 from featuremaps import LinearModel
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
 
 def add_intercept(x: np.ndarray):
@@ -86,51 +87,80 @@ def experiment(train_paths: dict, eval_paths: dict, lambds: list, ks: list) -> d
     """
     # 18x4
     results = {}
+    figure, axis = plt.subplots(1, 4, figsize=(18, 4))
+    iteration = 0
     for ghg, train_path in train_paths.items():
         results[ghg] = {}
         train_x, train_y = load_dataset(train_path, add_intercept=True)
         eval_x, eval_y = load_dataset(eval_paths[ghg], add_intercept=True)
         lowest_mse = (None, None, None, None)
         lowest_mape = (None, None, None, None)
+        mses = []
+        mapes = []
 
-        iteration = 0
-        figure, axis = plt.subplots(2, 6, figsize=(18, 8))
-        for lambd in lambds:
-            mses = []
-            mapes = []
+        # iteration = 0
+        # figure, axis = plt.subplots(2, 6, figsize=(18, 8))
+        # for lambd in lambds:
+        #     mses = []
+        #     mapes = []
+        #
+        #     for k in ks:
+        #         # Fit the model
+        #         lm = LinearModel(lambd)
+        #         lm.fit(lm.create_poly(k, train_x), train_y)
+        #         predictions = lm.predict(lm.create_poly(k, eval_x))
+        #
+        #         mse = get_mse(eval_y, predictions)
+        #         mses.append(mse)
+        #         mape = get_mape(eval_y, predictions)
+        #         mapes.append(mape)
+        #
+        #         if lowest_mse[2] is None or mse < lowest_mse[2]:
+        #             lowest_mse = lambd, k, mse, mape
+        #         if lowest_mape[3] is None or mape < lowest_mape[3]:
+        #             lowest_mape = lambd, k, mse, mape
 
-            for k in ks:
-                # Fit the model
-                lm = LinearModel(lambd)
-                lm.fit(lm.create_poly(k, train_x), train_y)
-                predictions = lm.predict(lm.create_poly(k, eval_x))
+            # # Plot the results
+            # plot = axis[0, iteration]
+            # plot.plot(ks, mses)
+            # plot.plot(lowest_mse[1], lowest_mse[2], 'g*', label="Lowest MSE = " + str(round(lowest_mse[2], 3)))
+            # plot.set_title("MSE vs k for lambda=" + str(lambd))
+            # plot.legend()
+            # plot = axis[1, iteration]
+            # plot.plot(ks, mapes)
+            # plot.plot(lowest_mape[1], lowest_mape[3], 'g*', label="Lowest MAPE = " + str(round(lowest_mape[3], 3)))
+            # plot.set_title("MAPE vs k for lambd=" + str(lambd))
+            # plot.legend()
+            # plt.savefig(ghg + " Polynominal Regression Experiment Results.png")
+            # iteration += 1
 
-                mse = get_mse(eval_y, predictions)
-                mses.append(mse)
-                mape = get_mape(eval_y, predictions)
-                mapes.append(mape)
+        for k in ks:
+            lm = LinearModel()
+            lm.fit(lm.create_poly(k, train_x), train_y)
+            predictions = lm.predict(lm.create_poly(k, eval_x))
+            mse = get_mse(eval_y, predictions)
+            mses.append(mse)
+            mape = get_mape(eval_y, predictions)
+            mapes.append(mape)
 
-                if lowest_mse[2] is None or mse < lowest_mse[2]:
-                    lowest_mse = lambd, k, mse, mape
-                if lowest_mape[3] is None or mape < lowest_mape[3]:
-                    lowest_mape = lambd, k, mse, mape
+            if lowest_mse[2] is None or mse < lowest_mse[2]:
+                lowest_mse = None, k, mse, mape
+            if lowest_mape[3] is None or mape < lowest_mape[3]:
+                lowest_mape = None, k, mse, mape
 
-            # Plot the results
-            plot = axis[0, iteration]
-            plot.plot(ks, mses)
-            plot.plot(lowest_mse[1], lowest_mse[2], 'g*', label="Lowest MSE = " + str(round(lowest_mse[2], 3)))
-            plot.set_title("MSE vs k for lambda=" + str(lambd))
-            plot.legend()
-            plot = axis[1, iteration]
-            plot.plot(ks, mapes)
-            plot.plot(lowest_mape[1], lowest_mape[3], 'g*', label="Lowest MAPE = " + str(round(lowest_mape[3], 3)))
-            plot.set_title("MAPE vs k for lambd=" + str(lambd))
-            plot.legend()
-            plt.savefig(ghg + " Polynominal Regression Experiment Results.png")
-            iteration += 1
+        plot = axis[iteration]
+        plot.plot(ks, mapes)
+        plot.plot(lowest_mape[1], lowest_mape[3], 'g*', label="Lowest MAPE = " + str(round(lowest_mape[3], 3)))
+        plot.set_xlabel("Polynomial Degree")
+        plot.set_ylabel("MAPE")
+        plot.legend()
+        plot.set_title("MAPE vs. Poly. Deg. for " + ghg)
+        iteration += 1
 
         results[ghg]["MSE"] = lowest_mse
         results[ghg]["MAPE"] = lowest_mape
+
+    plt.savefig("Optimal MAPEs Plot.png")
 
     return results
 
@@ -166,6 +196,43 @@ def plot_best_models(train_paths: dict, eval_paths: dict, best_hyperparams: dict
     plt.savefig("Best Emissions Data Fits.png")
 
 
+def save_predicted_indicator(train_paths: dict, test_paths: dict, best_hyperparams: dict):
+    """Train models using the optimal hyperparameters. Print the test MAPE for each greenhouse gas. Generate these
+    predictions for 2020 and 2021
+
+    Args:
+        train_paths:
+        test_paths:
+        best_hyperparams:
+
+    Returns:
+
+    """
+    total_data = np.array([[2020], [2021]])
+    column_names = ["Year"]
+    for ghg, train_path in train_paths.items():
+        column_names.append(ghg)
+        train_x, train_y = load_dataset(train_path, add_intercept=True)
+        test_x, test_y = load_dataset(test_paths[ghg], add_intercept=True)
+        y_2020 = test_x[:, 1] == 2020
+        y_2021 = test_x[:, 1] == 2021
+        test_y = test_y[np.logical_or(y_2020, y_2021)]
+
+        _, k, _, _ = best_hyperparams[ghg]["MAPE"]
+        lm = LinearModel()
+        lm.fit(lm.create_poly(k, train_x), train_y)
+        predictions = lm.predict(lm.create_poly(k, test_x[np.logical_or(y_2020, y_2021)]))
+
+        mape = get_mape(test_y, predictions)
+        print("MAPE for " + ghg + " is " + str(mape))
+
+        total_data = np.append(total_data, np.reshape(predictions, (-1, 1)), axis=1)
+
+    df = pd.DataFrame(total_data)
+    df.columns = column_names
+    df.to_csv("predicted_ghg_values.csv", header=True, index=False)
+
+
 if __name__ == "__main__":
     train_paths = {
         "Carbon Dioxide": 'clean_data/most_recent_split/crbn_dioxide_train.csv',
@@ -179,8 +246,15 @@ if __name__ == "__main__":
         "Nitrous Oxide": 'clean_data/most_recent_split/ntrs_oxide_val.csv',
         "Surface Temp. Effect": 'clean_data/most_recent_split/srfce_tmp_afft_val.csv'
     }
+    test_paths = {
+        "Carbon Dioxide": 'clean_data/most_recent_split/crbn_dioxide_test.csv',
+        "Methane": 'clean_data/most_recent_split/methane_test.csv',
+        "Nitrous Oxide": 'clean_data/most_recent_split/ntrs_oxide_test.csv',
+        "Surface Temp. Effect": 'clean_data/most_recent_split/srfce_tmp_afft_test.csv'
+    }
     # lambds = [0.001, 0.01, 0.1, 0.25, 0.5, 1]
     lambds = [1, 2, 3, 4, 5, 6]
     ks = [1, 2, 3, 4, 5, 6, 7, 8, 9]
     results = experiment(train_paths, eval_paths, lambds, ks)
-    plot_best_models(train_paths, eval_paths, results)
+    # plot_best_models(train_paths, eval_paths, results)
+    save_predicted_indicator(train_paths, test_paths, results)
