@@ -49,7 +49,7 @@ def generate_image_from_data(image, centroids, prediction_file_name):
         Updated image
     """
 
-    pred_type = 0
+    pred_type = 1
 
     if pred_type == 1:
         prediction_file_name = '../data/k_4_data_predictions_sample.csv'
