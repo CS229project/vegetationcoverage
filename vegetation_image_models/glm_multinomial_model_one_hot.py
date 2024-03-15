@@ -103,6 +103,7 @@ def main(lr, data_path, pred_path, start_year, total_years):
     y_predict = model.predict(test_x)
     print(np.argmax(y_predict, axis=1, keepdims=True))
     print(np.unique(np.argmax(y_predict, axis=1, keepdims=True)))
+
     #Save Prediction
     predictions = np.argmax(y_predict, axis=1, keepdims=True)
     np.savetxt('../data/k_' + str(number_of_groups) + '_prediction.txt', predictions)
@@ -169,19 +170,16 @@ class MultimodalRegression:
                 prev_theta = self.theta
 
             if i%100 == 0: 
-                #loss = np.linalg.norm(y - np.exp(eta), 2)
                 loss = (y.shape[0]**-1)*np.multiply(y,np.exp(eta)).sum()
                 losses.append(loss)
                 eval_eta = np.dot(eval_x,self.theta)
-                #eval_loss = np.linalg.norm(eval_y - np.exp(eval_eta))
                 eval_loss = (eval_y.shape[0]**-1)*np.multiply(eval_y,np.exp(eval_eta)).sum()
                 eval_losses.append(eval_loss)
-
                 
                 print(f'Delta Theta: {delta_theta} Train loss: {loss} Eval Loss: {eval_loss} iteration: {i}')
                 #Write the theta so we can initialize it later
                 np.savetxt('./glm_theta_init.txt', self.theta)
-            #loss = (x.shape[0]**-1)*np.sum(, axis=0)
+
         print(f'Converged after: {i} iterations')
         # *** END CODE HERE ***
         return losses, eval_losses
@@ -197,9 +195,6 @@ class MultimodalRegression:
         """
         eta = np.dot(x,self.theta)
         y_hat = np.argmax(np.exp(eta)/np.exp(eta).sum(axis=1, keepdims=True), axis=1, keepdims=True)
-        #print(np.unique(y_hat))
-        #print(np.exp(eta)/np.exp(eta).sum(axis=1, keepdims=True))
-        #y_hat = y_hat.reshape((y_hat.shape[0],))
         y_hat = np.exp(eta)/np.exp(eta).sum(axis=1, keepdims=True)
 
         return y_hat

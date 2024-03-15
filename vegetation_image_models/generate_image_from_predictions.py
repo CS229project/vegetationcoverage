@@ -83,12 +83,8 @@ def generate_image_from_data(image, centroids, prediction_file_name):
             curr_pred = preds[preds[:,0] == years[k]]
             for i in range(image.shape[0]):
                 for j in range(image.shape[1]):
-                    #print(preds[(i+1)*(j+1)])
-                    #print(centroids)
-                    #print(preds.shape, years[k], preds[preds[:,0] == years[k]])
-                    #print(centroids[int(curr_pred[(i+1)*(j+1)-1,1])])
+                    print(int(curr_pred[(i+1)*(j+1)-1,1]))
                     image[i,j] = centroids[int(curr_pred[(i+1)*(j+1)-1,1])]
-                    #print(centroids[int(preds[(k+1)*(i+1)*(j+1)-1])])
 
             plt.figure(k)
             plt.imshow(image/255)
@@ -142,9 +138,9 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_path', default='../data/k_12_prediction.txt',
+    parser.add_argument('--data_path', default='../data/k_4_prediction.txt',
                         help='Path to prediction file')
-    parser.add_argument('--centroids_path', default='../data/k_12_centroids_rgb_values_sin.dat',
+    parser.add_argument('--centroids_path', default='../data/k_4_centroids_rgb_values_pixel_x_y.dat',
                         help='Path to centroids file')
     args = parser.parse_args()
     main(args)

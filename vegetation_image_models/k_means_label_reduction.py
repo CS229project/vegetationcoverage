@@ -158,8 +158,8 @@ def generate_image_and_data(image, centroids, image_name, year, year_csv_value, 
             #Write the labels and the positional data
             pixel_position = (i+1)*(j+1)
             #encoding = np.sin(pixel_position*np.pi*((2*total_pixels)**-1)) #Positional encoding from 0 to 1 using sin
-            encoding = pixel_position #Positional encoding from 0 to 1 using sin
-            #encoding = f'{str(i+1)},{str(j+1)}'
+            #encoding = pixel_position #Positional encoding from 0 to 1 using sin
+            encoding = f'{str(i+1)},{str(j+1)}'
 
             f.write(f'{year},{str(pixels_group[i,j,0])},{str(encoding)},{year_csv_value}\n')
 
@@ -247,8 +247,8 @@ def main(args):
 
     #Start writing the data as well
     f = open("../data/k_" + str(centroids.shape[0]) + "_data.csv", "w")
-    #f.write("year,group,pixel_position_encoding_x,pixel_position_encoding_y,crbn_dioxide,methane,ntrs_oxide,srfce_tmp\n")
-    f.write("year,group,pixel_position_encoding,crbn_dioxide,methane,ntrs_oxide,srfce_tmp\n")
+    f.write("year,group,pixel_position_encoding_x,pixel_position_encoding_y,crbn_dioxide,methane,ntrs_oxide,srfce_tmp\n")
+    #f.write("year,group,pixel_position_encoding,crbn_dioxide,methane,ntrs_oxide,srfce_tmp\n")
 
     #Run through all the images and generate the dataset
     basepath = '../images/'
@@ -259,12 +259,10 @@ def main(args):
                     year = entry.name.split('.')[0].split('_')[-1]
                     image_name = basepath + entry.name
 
-                    #year_csv_value = df_cs
                     year_csv_value = str(df_cs[(df_cs[:,0] == int(year)).nonzero()][0,1])
                     year_csv_value = year_csv_value + ',' + str(df_mt[(df_mt[:,0] == int(year)).nonzero()][0,1])
                     year_csv_value = year_csv_value + ',' + str(df_ntrs[(df_ntrs[:,0] == int(year)).nonzero()][0,1])
                     year_csv_value = year_csv_value + ',' + str(df_st[(df_st[:,0] == int(year)).nonzero()][0,1])
-
 
                     # Load next image image
                     image = np.copy(mpimg.imread(image_name))
@@ -277,8 +275,6 @@ def main(args):
                     plt.axis('off')
                     savepath = os.path.join('.', 'orig_large.png')
                     plt.savefig(fname=savepath, transparent=True, format='png', bbox_inches='tight')
-
-
 
                     # Update large image with centroids calculated on small image
                     print(25 * '=')
@@ -298,10 +294,6 @@ def main(args):
     #Save the centroids
     np.savetxt("../data/k_" + str(centroids.shape[0]) + "_centroids_rgb_values.dat", centroids)
 
-
-
-
-
     print('\nCOMPLETE')
 
 
@@ -313,7 +305,7 @@ if __name__ == '__main__':
                         help='Path to later image')
     parser.add_argument('--max_iter', type=int, default=150,
                         help='Maximum number of iterations')
-    parser.add_argument('--num_clusters', type=int, default=12,
+    parser.add_argument('--num_clusters', type=int, default=4,
                         help='Number of centroids/clusters')
     parser.add_argument('--print_every', type=int, default=10,
                         help='Iteration print frequency')

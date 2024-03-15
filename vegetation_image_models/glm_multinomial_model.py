@@ -145,7 +145,7 @@ class MultimodalRegression:
             eta = np.dot(x,self.theta)
             gradient = (x.shape[0]**-1)*np.dot(x.T, (y - np.exp(eta)))
 
-            self.theta = self.theta + self.step_size*gradient #+ 0.001*self.step_size*self.theta
+            self.theta = self.theta + self.step_size*gradient - 0.001*self.step_size*(self.theta**2)
             i += 1
 
             delta_theta = np.linalg.norm(prev_theta - self.theta, 1)
