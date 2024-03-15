@@ -49,22 +49,38 @@ def generate_image_from_data(image, centroids, prediction_file_name):
         Updated image
     """
 
-    # *** START YOUR CODE ***
-    prediction_file_name = '../data/k_4_data_predictions_sample.csv'
-    df = pd.read_csv(prediction_file_name)
-    print(centroids)
-    
-    #print(np.arcsin(df['pixel_position_encoding']))
-    pixels_group = df['group'].to_numpy()
-    pixels_group = np.reshape(pixels_group,(image.shape[0],image.shape[1],1))
+    pred_type = 0
 
-    #total_pixels = image.shape[0]*image.shape[1]
-    for i in range(pixels_group.shape[0]):
-        for j in range(pixels_group.shape[1]):
-            image[i,j] = centroids[pixels_group[i,j,0]]
-            print(centroids[pixels_group[i,j,0]])
-            
-    # *** END YOUR CODE ***
+    if pred_type == 1:
+        prediction_file_name = '../data/k_4_data_predictions_sample.csv'
+        df = pd.read_csv(prediction_file_name)
+        print(centroids)
+        
+        #print(np.arcsin(df['pixel_position_encoding']))
+        pixels_group = df['group'].to_numpy()
+        pixels_group = np.reshape(pixels_group,(image.shape[0],image.shape[1],1))
+
+        #total_pixels = image.shape[0]*image.shape[1]
+        for i in range(pixels_group.shape[0]):
+            for j in range(pixels_group.shape[1]):
+                image[i,j] = centroids[pixels_group[i,j,0]]
+                print(centroids[pixels_group[i,j,0]])
+    elif pred_type == 0:
+        prediction_file_name = '../data/k_4_prediction.txt'
+        preds = np.loadtxt(prediction_file_name)
+
+        #81790
+        row = image.shape[0]
+        col = image.shape[1]
+        num_of_images = int(preds.shape[0]/(image.shape[0]*image.shape[1]))
+
+        for k in range(num_of_images):
+            for i in range(image.shape[0]):
+                for j in range(image.shape[1]):
+                    print(preds[(i+1)*(j+1)])
+                    print(centroids)
+                    image[i,j] = centroids[int(preds[(k+1)*(i+1)*(j+1)-1])]
+                    print(centroids[int(preds[(k+1)*(i+1)*(j+1)-1])])
 
     return image
 

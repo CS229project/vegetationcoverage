@@ -1,13 +1,13 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import os
 
 def get_one_hot_vector(number_of_groups, y):
     one_hot_y = np.zeros((y.shape[0], number_of_groups))
     one_hot_y[np.arange(y.shape[0]).astype(int), y.astype(int)] = 1
     
     return one_hot_y
-
 
 def main(lr, data_path, pred_path, start_year, total_years):
     """Problem: Poisson regression with gradient ascent.
@@ -20,7 +20,6 @@ def main(lr, data_path, pred_path, start_year, total_years):
     """
     # Load training, test and validation set
     total_set = np.arange(0,total_years) + start_year
-    print(total_set)
     train_split = 0.8
     eval_split = 0.1
 
@@ -35,42 +34,66 @@ def main(lr, data_path, pred_path, start_year, total_years):
     eval_data = df.loc[df['year'].isin(eval_set), :].to_numpy()[:,1:]
     test_data = df.loc[df['year'].isin(test_set), :].to_numpy()[:,1:]
     
-    number_of_groups = np.unique(train_data[:,0]).shape[0]
-
+    #number_of_groups = np.unique(train_data[:,0]).shape[0]
+    number_of_groups = int(np.max(train_data[:,0])) + 1
+    print(number_of_groups)
 
     train_y = get_one_hot_vector(number_of_groups, train_data[:, 0])
-    train_x = train_data[:, 1:]
-
     eval_y = get_one_hot_vector(number_of_groups, eval_data[:, 0])
-    eval_x = eval_data[:, 1:]
-
     test_y = get_one_hot_vector(number_of_groups, test_data[:, 0])
-    test_x = test_data[:, 1:]
 
+    #Feature engineering
+    fe = 0
+    if fe == 0:
+        #No feature engineering
+        train_x = train_data[:, 1:]
+        eval_x = eval_data[:, 1:]
+        test_x = test_data[:, 1:]
+    elif fe==1:
+        #1 add position sine value to data
+        train_x = train_data[:, 2:] + np.reshape(train_data[:, 1], (train_data.shape[0],1))
+        eval_x = eval_data[:, 2:] + np.reshape(eval_data[:, 1] ,(eval_data.shape[0],1))
+        test_x = test_data[:, 2:] + np.reshape(test_data[:, 1],(test_data.shape[0],1))
+    elif fe ==2:
+        #Make features quadratic with addition from pixel position
+        num_cols = train_data.shape[1]
+        train_x = train_data[:, 2:] + np.reshape(train_data[:, 1], (train_data.shape[0],1))
+        eval_x = eval_data[:, 2:] + np.reshape(eval_data[:, 1] ,(eval_data.shape[0],1))
+        test_x = test_data[:, 2:] + np.reshape(test_data[:, 1],(test_data.shape[0],1))
+        for i in range(num_cols):
+            train_x = np.append(train_x, np.reshape(train_x[:,i]**2, (train_x.shape[0],1)), 1)
+            eval_x = np.append(eval_x, np.reshape(eval_x[:,i]**2, (eval_x.shape[0],1)), 1)
+            test_x = np.append(test_x, np.reshape(test_x[:,i]**2, (test_x.shape[0],1)), 1)
 
-    # *** START CODE HERE ***
     # Fit a Multimodal Regression model
-    model = MultimodalRegression(theta_0=np.zeros((train_x.shape[1],1)))
+    if os.path.isfile('./glm_theta_init.txt'):
+        theta_0 = np.loadtxt('./glm_theta_init.txt')
+    else:
+        theta_0 = np.zeros((train_x.shape[1],1))
 
-    model.fit(train_x,train_y)
-    '''
-    # Run on the validation set, and use np.savetxt to save outputs to save_path
-    x_eval, y_eval = util.load_dataset(eval_path, add_intercept=True)
-    y_predict = model.predict(x_eval)
+    max_iter = 100000
     
-    # Plot dataset
+    model = MultimodalRegression(theta_0=theta_0, max_iter=max_iter, use_mini_batch=True)
+
+    train_losses, eval_losses = model.fit(train_x,train_y, eval_x, eval_y)
+    
     plt.figure()
-    plt.scatter(y_eval, y_predict)
+    iterations = np.arange(len(train_losses))
+    plt.plot(iterations, train_losses, label="train")
+    plt.plot(iterations, eval_losses, label="eval")
+    plt.xlabel('iteration')
+    plt.ylabel('losses')
+    plt.legend()
+    plt.savefig("loss_plot.png")
 
-    # Add labels and save to disk
-    plt.xlabel('y_true')
-    plt.ylabel('y_predicted')
-    plt.savefig("poisson_plot.png")
-
-
-    # *** END CODE HERE ***
-    '''
-
+    # Run on the validation set, and use np.savetxt to save outputs to save_path
+    y_predict = model.predict(test_x)
+    print(np.argmax(y_predict, axis=1, keepdims=True))
+    print(np.unique(np.argmax(y_predict, axis=1, keepdims=True)))
+    #Save Prediction
+    predictions = np.argmax(y_predict, axis=1, keepdims=True)
+    np.savetxt('../data/k_' + str(number_of_groups) + '_prediction.txt', predictions)
+    
 
 class MultimodalRegression:
     """Multimodal Regression.
@@ -81,8 +104,8 @@ class MultimodalRegression:
         > clf.predict(x_eval)
     """
 
-    def __init__(self, step_size=1e-5, max_iter=10000000, eps=1e-5,
-                 theta_0=None, verbose=True):
+    def __init__(self, step_size=1e-5, max_iter=10000000, eps=1e-6,
+                 theta_0=None, verbose=True, use_mini_batch=False, batch_size=16000):
         """
         Args:
             step_size: Step size for iterative solvers only.
@@ -96,8 +119,10 @@ class MultimodalRegression:
         self.max_iter = max_iter
         self.eps = eps
         self.verbose = verbose
+        self.use_mini_batch=use_mini_batch
+        self.batch_size=batch_size
 
-    def fit(self, x, y):
+    def fit(self, x, y, eval_x, eval_y, epochs=0):
         """Run gradient ascent to maximize likelihood for Poisson regression.
         Update the parameter by step_size * (sum of the gradient over examples)
 
@@ -106,27 +131,47 @@ class MultimodalRegression:
             y: Training example labels. Shape (n_examples, number_of_groups).
         """
         prev_theta = self.theta
+        losses = []
+        eval_losses = []
         i = 0
         stop = False
 
+        while (not stop):
+            if (self.use_mini_batch):
+                random_batch_index = np.random.choice(x.shape[0], size=self.batch_size, replace=False)
+                x = x[random_batch_index, :]
+                y = y[random_batch_index, :]
 
-        while (not stop or not i==1):
             eta = np.dot(x,self.theta)
             gradient = (x.shape[0]**-1)*np.dot(x.T, (y - np.exp(eta)))
 
-            self.theta = self.theta + self.step_size*gradient
+            self.theta = self.theta + self.step_size*gradient #+ 0.001*self.step_size*self.theta
             i += 1
 
-            print(np.linalg.norm(prev_theta - self.theta, 1) )
-            if (np.linalg.norm(prev_theta - self.theta, 1) < self.eps):
+            delta_theta = np.linalg.norm(prev_theta - self.theta, 1)
+            if (delta_theta < self.eps or i > self.max_iter):
                 stop = True
                 exit
             else:
                 prev_theta = self.theta
 
+            if i%100 == 0: 
+                #loss = np.linalg.norm(y - np.exp(eta), 2)
+                loss = (y.shape[0]**-1)*np.multiply(y,np.exp(eta)).sum()
+                losses.append(loss)
+                eval_eta = np.dot(eval_x,self.theta)
+                #eval_loss = np.linalg.norm(eval_y - np.exp(eval_eta))
+                eval_loss = (eval_y.shape[0]**-1)*np.multiply(eval_y,np.exp(eval_eta)).sum()
+                eval_losses.append(eval_loss)
+
+                
+                print(f'Delta Theta: {delta_theta} Train loss: {loss} Eval Loss: {eval_loss} iteration: {i}')
+                #Write the theta so we can initialize it later
+                np.savetxt('./glm_theta_init.txt', self.theta)
             #loss = (x.shape[0]**-1)*np.sum(, axis=0)
         print(f'Converged after: {i} iterations')
         # *** END CODE HERE ***
+        return losses, eval_losses
 
     def predict(self, x):
         """Make a prediction given inputs x.
@@ -137,17 +182,18 @@ class MultimodalRegression:
         Returns:
             Floating-point prediction for each input, shape (n_examples,).
         """
-        # *** START CODE HERE ***
         eta = np.dot(x,self.theta)
-        y_hat = np.exp(eta)
-        y_hat = y_hat.reshape((y_hat.shape[0],))
+        y_hat = np.argmax(np.exp(eta)/np.exp(eta).sum(axis=1, keepdims=True), axis=1, keepdims=True)
+        #print(np.unique(y_hat))
+        #print(np.exp(eta)/np.exp(eta).sum(axis=1, keepdims=True))
+        #y_hat = y_hat.reshape((y_hat.shape[0],))
+        y_hat = np.exp(eta)/np.exp(eta).sum(axis=1, keepdims=True)
 
         return y_hat
-        # *** END CODE HERE ***
 
 if __name__ == '__main__':
-    main(lr=1e-5,
-        data_path='~/Downloads/k_4_data.csv',
+    main(lr=1,
+        data_path='~/Downloads/k_12_data.csv',
         pred_path='../data/predictions.csv',
         start_year=2001,
         total_years=21)
