@@ -158,8 +158,8 @@ def generate_image_and_data(image, centroids, image_name, year, year_csv_value, 
             #Write the labels and the positional data
             pixel_position = (i+1)*(j+1)
             #encoding = np.sin(pixel_position*np.pi*((2*total_pixels)**-1)) #Positional encoding from 0 to 1 using sin
-            #encoding = pixel_position #Positional encoding from 0 to 1 using sin
-            encoding = f'{str(i+1)},{str(j+1)}'
+            encoding = pixel_position #Positional encoding from 0 to 1 using sin
+            #encoding = f'{str(i+1)},{str(j+1)}'
 
             f.write(f'{year},{str(pixels_group[i,j,0])},{str(encoding)},{year_csv_value}\n')
 

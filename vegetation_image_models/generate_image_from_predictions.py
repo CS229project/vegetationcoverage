@@ -49,7 +49,7 @@ def generate_image_from_data(image, centroids, prediction_file_name):
         Updated image
     """
 
-    pred_type = 1
+    pred_type = 0
 
     if pred_type == 1:
         prediction_file_name = '../data/k_4_data_predictions_sample.csv'
@@ -66,21 +66,39 @@ def generate_image_from_data(image, centroids, prediction_file_name):
                 image[i,j] = centroids[pixels_group[i,j,0]]
                 print(centroids[pixels_group[i,j,0]])
     elif pred_type == 0:
-        prediction_file_name = '../data/k_4_prediction.txt'
+        #prediction_file_name = '../data/k_12_prediction.txt'
         preds = np.loadtxt(prediction_file_name)
 
         #81790
         row = image.shape[0]
         col = image.shape[1]
-        num_of_images = int(preds.shape[0]/(image.shape[0]*image.shape[1]))
+
+
+        #num_of_images = int(preds.shape[0]/(image.shape[0]*image.shape[1]))
+        years = np.unique(preds[:,0])
+        num_of_images = years.shape[0]
 
         for k in range(num_of_images):
+            print(f'Generating image {k}')
+            curr_pred = preds[preds[:,0] == years[k]]
             for i in range(image.shape[0]):
                 for j in range(image.shape[1]):
-                    print(preds[(i+1)*(j+1)])
-                    print(centroids)
-                    image[i,j] = centroids[int(preds[(k+1)*(i+1)*(j+1)-1])]
-                    print(centroids[int(preds[(k+1)*(i+1)*(j+1)-1])])
+                    #print(preds[(i+1)*(j+1)])
+                    #print(centroids)
+                    #print(preds.shape, years[k], preds[preds[:,0] == years[k]])
+                    #print(centroids[int(curr_pred[(i+1)*(j+1)-1,1])])
+                    image[i,j] = centroids[int(curr_pred[(i+1)*(j+1)-1,1])]
+                    #print(centroids[int(preds[(k+1)*(i+1)*(j+1)-1])])
+
+            plt.figure(k)
+            plt.imshow(image/255)
+            plt.title('Updated large image')
+            plt.axis('off')
+            savepath = os.path.join('.', 'k_'+ str(int(years[k])) + '_prediction.png')
+            plt.savefig(fname=savepath, transparent=True, format='png', bbox_inches='tight')
+            image = np.zeros((254,322,3))
+
+
 
     return image
 
@@ -124,9 +142,9 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_path', default='../data/k_4_data_predictions_sample.csv',
+    parser.add_argument('--data_path', default='../data/k_12_prediction.txt',
                         help='Path to prediction file')
-    parser.add_argument('--centroids_path', default='../data/k_4_centroids_rgb_values.dat',
+    parser.add_argument('--centroids_path', default='../data/k_12_centroids_rgb_values_sin.dat',
                         help='Path to centroids file')
     args = parser.parse_args()
     main(args)
