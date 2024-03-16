@@ -303,10 +303,10 @@ def main(args):
         np.savetxt("../data/k_" + str(centroids.shape[0]) + "_centroids_rgb_values.dat", centroids)
     else:
         df_pred = pd.read_csv('../emmissions_data/predicted_ghg_values.csv').to_numpy()
-        df_images = pd.read_csv('~/Downloads/k_4_data.csv')
+        df_images = pd.read_csv('~/Downloads/k_4_data_Mar12.csv')
 
         #Start writing the data as well
-        f = open("../data/k_predictions_data.csv", "w")
+        f = open("../data/k_4_prediction_Mar12.txt", "w")
         f.write("year,group,pixel_position_encoding,crbn_dioxide,methane,ntrs_oxide,srfce_tmp\n")
 
         finalData = None
