@@ -113,6 +113,10 @@ def update_centroids(centroids, image, max_iter=30, print_every=10):
 
     return new_centroids
 
+def generate_data_using_centroids(pred_path, centroids):
+
+    return False
+
 def generate_image_and_data(image, centroids, image_name, year, year_csv_value, f):
     """
     Update RGB values of pixels in `image` by finding
@@ -157,9 +161,9 @@ def generate_image_and_data(image, centroids, image_name, year, year_csv_value, 
             
             #Write the labels and the positional data
             pixel_position = (i+1)*(j+1)
-            #encoding = np.sin(pixel_position*np.pi*((2*total_pixels)**-1)) #Positional encoding from 0 to 1 using sin
+            encoding = np.sin(pixel_position*np.pi*((2*total_pixels)**-1)) #Positional encoding from 0 to 1 using sin
             #encoding = pixel_position #Positional encoding from 0 to 1 using sin
-            encoding = f'{str(i+1)},{str(j+1)}'
+            #encoding = f'{str(i+1)},{str(j+1)}'
 
             f.write(f'{year},{str(pixels_group[i,j,0])},{str(encoding)},{year_csv_value}\n')
 
@@ -168,131 +172,158 @@ def generate_image_and_data(image, centroids, image_name, year, year_csv_value, 
 
 def main(args):
 
-    #Open data for carbon dioxide, methane, ntrs_oxide and srfce_tmp
-    #We have data available till 2021
-    df_cs = pd.read_csv('../emmissions_data/clean_data/crbn_dioxide_complete.csv', header=None).to_numpy()
-    df_mt = pd.read_csv('../emmissions_data/clean_data/methane_complete.csv', header=None).to_numpy()
-    df_ntrs = pd.read_csv('../emmissions_data/clean_data/ntrs_oxide_complete.csv', header=None).to_numpy()
-    df_st = pd.read_csv('../emmissions_data/clean_data/srfce_tmp_afft_complete.csv', header=None).to_numpy()
+    data_gen_from_scratch = False
+
+    if data_gen_from_scratch:
+
+        #Open data for carbon dioxide, methane, ntrs_oxide and srfce_tmp
+        #We have data available till 2021
+        df_cs = pd.read_csv('../emmissions_data/clean_data/crbn_dioxide_complete.csv', header=None).to_numpy()
+        df_mt = pd.read_csv('../emmissions_data/clean_data/methane_complete.csv', header=None).to_numpy()
+        df_ntrs = pd.read_csv('../emmissions_data/clean_data/ntrs_oxide_complete.csv', header=None).to_numpy()
+        df_st = pd.read_csv('../emmissions_data/clean_data/srfce_tmp_afft_complete.csv', header=None).to_numpy()
 
 
-    # Setup
-    max_iter = args.max_iter
-    print_every = args.print_every
-    image_path_small = args.data_path
-    image_path_large = args.large_path
-    num_clusters = args.num_clusters
-    figure_idx = 0
-    image_name = image_path_large.split('/')[-1].split('.')[0]
-    base_year = image_path_small.split('_')[-1].split('.')[0]
+        # Setup
+        max_iter = args.max_iter
+        print_every = args.print_every
+        image_path_small = args.data_path
+        image_path_large = args.large_path
+        num_clusters = args.num_clusters
+        figure_idx = 0
+        image_name = image_path_large.split('/')[-1].split('.')[0]
+        base_year = image_path_small.split('_')[-1].split('.')[0]
 
 
-    #Normalize the values
-    df_cs[:,1] = df_cs[:,1] / df_cs[:,1].max(axis=0)
-    #Convert iteger to float
-    df_mt = df_mt.astype(float)
-    df_mt[:,1] = df_mt[:,1] / df_mt[:,1].max(axis=0)
-    df_ntrs[:,1] = df_ntrs[:,1] / df_ntrs[:,1].max(axis=0)
-    df_st[:,1] = df_st[:,1] / df_st[:,1].max(axis=0)
+        #Normalize the values
+        df_cs[:,1] = df_cs[:,1] / df_cs[:,1].max(axis=0)
+        #Convert iteger to float
+        df_mt = df_mt.astype(float)
+        df_mt[:,1] = df_mt[:,1] / df_mt[:,1].max(axis=0)
+        df_ntrs[:,1] = df_ntrs[:,1] / df_ntrs[:,1].max(axis=0)
+        df_st[:,1] = df_st[:,1] / df_st[:,1].max(axis=0)
 
-    # Load small image
-    image = np.copy(mpimg.imread(image_path_small))
-    print('[INFO] Loaded small image with shape: {}'.format(np.shape(image)))
-    plt.figure(figure_idx)
-    figure_idx += 1
-    plt.imshow(image)
-    plt.title('Original small image')
-    plt.axis('off')
-    savepath = os.path.join('.', 'orig_small.png')
-    plt.savefig(savepath, transparent=True, format='png', bbox_inches='tight')
-
-
-    #Scatter plot the image to check if we can identify clusters
-    scatterData = np.reshape(image, (image.shape[0]*image.shape[1],image.shape[2]))
-    plt.figure(figure_idx)
-    figure_idx += 1
-    plt.title('Image Scatter plot')
-    plt.axis('off')
-    plt.axes(projection = '3d', proj_type = 'ortho')
-    plt.xlabel('Red')
-    plt.ylabel('Green')
-
-    plt.scatter(scatterData[:,0]/255,scatterData[:,1]/255,scatterData[:,2]/255, c=scatterData/255)
-    savepath = os.path.join('.', 'scatter.png')
-    plt.savefig(savepath, transparent=False, format='png', bbox_inches='tight')
-
-    # Initialize centroids
-    print('[INFO] Centroids initialized')
-    centroids_init = init_centroids(num_clusters, image)
-
-    # Update centroids
-    print(25 * '=')
-    print('Updating centroids ...')
-    print(25 * '=')
-    centroids = update_centroids(centroids_init, image, max_iter, print_every)
-
-    # Load large image
-    image = np.copy(mpimg.imread(image_path_large))
-    image.setflags(write=1)
-    print('[INFO] Loaded large image with shape: {}'.format(np.shape(image)))
-    plt.figure(figure_idx)
-    figure_idx += 1
-    plt.imshow(image)
-    plt.title('Original large image')
-    plt.axis('off')
-    savepath = os.path.join('.', 'orig_large.png')
-    plt.savefig(fname=savepath, transparent=True, format='png', bbox_inches='tight')
+        # Load small image
+        image = np.copy(mpimg.imread(image_path_small))
+        print('[INFO] Loaded small image with shape: {}'.format(np.shape(image)))
+        plt.figure(figure_idx)
+        figure_idx += 1
+        plt.imshow(image)
+        plt.title('Original small image')
+        plt.axis('off')
+        savepath = os.path.join('.', 'orig_small.png')
+        plt.savefig(savepath, transparent=True, format='png', bbox_inches='tight')
 
 
+        #Scatter plot the image to check if we can identify clusters
+        scatterData = np.reshape(image, (image.shape[0]*image.shape[1],image.shape[2]))
+        plt.figure(figure_idx)
+        figure_idx += 1
+        plt.title('Image Scatter plot')
+        plt.axis('off')
+        plt.axes(projection = '3d', proj_type = 'ortho')
+        plt.xlabel('Red')
+        plt.ylabel('Green')
 
-    #Start writing the data as well
-    f = open("../data/k_" + str(centroids.shape[0]) + "_data.csv", "w")
-    f.write("year,group,pixel_position_encoding_x,pixel_position_encoding_y,crbn_dioxide,methane,ntrs_oxide,srfce_tmp\n")
-    #f.write("year,group,pixel_position_encoding,crbn_dioxide,methane,ntrs_oxide,srfce_tmp\n")
+        plt.scatter(scatterData[:,0]/255,scatterData[:,1]/255,scatterData[:,2]/255, c=scatterData/255)
+        savepath = os.path.join('.', 'scatter.png')
+        plt.savefig(savepath, transparent=False, format='png', bbox_inches='tight')
 
-    #Run through all the images and generate the dataset
-    basepath = '../images/'
-    with os.scandir(basepath) as entries:
-        for entry in entries:
-            if entry.is_file():
-                if (entry.name != ".DS_Store"):
-                    year = entry.name.split('.')[0].split('_')[-1]
-                    image_name = basepath + entry.name
+        # Initialize centroids
+        print('[INFO] Centroids initialized')
+        centroids_init = init_centroids(num_clusters, image)
 
-                    year_csv_value = str(df_cs[(df_cs[:,0] == int(year)).nonzero()][0,1])
-                    year_csv_value = year_csv_value + ',' + str(df_mt[(df_mt[:,0] == int(year)).nonzero()][0,1])
-                    year_csv_value = year_csv_value + ',' + str(df_ntrs[(df_ntrs[:,0] == int(year)).nonzero()][0,1])
-                    year_csv_value = year_csv_value + ',' + str(df_st[(df_st[:,0] == int(year)).nonzero()][0,1])
+        # Update centroids
+        print(25 * '=')
+        print('Updating centroids ...')
+        print(25 * '=')
+        centroids = update_centroids(centroids_init, image, max_iter, print_every)
 
-                    # Load next image image
-                    image = np.copy(mpimg.imread(image_name))
-                    image.setflags(write=1)
-                    print('[INFO] Loaded large image with shape: {}'.format(np.shape(image)))
-                    plt.figure(figure_idx)
-                    figure_idx += 1
-                    plt.imshow(image)
-                    plt.title('Original large image')
-                    plt.axis('off')
-                    savepath = os.path.join('.', 'orig_large.png')
-                    plt.savefig(fname=savepath, transparent=True, format='png', bbox_inches='tight')
+        # Load large image
+        image = np.copy(mpimg.imread(image_path_large))
+        image.setflags(write=1)
+        print('[INFO] Loaded large image with shape: {}'.format(np.shape(image)))
+        plt.figure(figure_idx)
+        figure_idx += 1
+        plt.imshow(image)
+        plt.title('Original large image')
+        plt.axis('off')
+        savepath = os.path.join('.', 'orig_large.png')
+        plt.savefig(fname=savepath, transparent=True, format='png', bbox_inches='tight')
 
-                    # Update large image with centroids calculated on small image
-                    print(25 * '=')
-                    print('Updating large image ...' + image_name)
-                    print(25 * '=')
-                    image_clustered = generate_image_and_data(image, centroids, image_name, year, year_csv_value, f)
 
-                    plt.figure(figure_idx)
-                    figure_idx += 1
-                    plt.imshow(image_clustered)
-                    plt.title('Updated large image')
-                    plt.axis('off')
-                    savepath = os.path.join('.', 'k_'+ str(num_clusters) + '_' + year + '_updated_large_' + base_year + '_base.png')
-                    plt.savefig(fname=savepath, transparent=True, format='png', bbox_inches='tight')
 
-    f.close()
-    #Save the centroids
-    np.savetxt("../data/k_" + str(centroids.shape[0]) + "_centroids_rgb_values.dat", centroids)
+        #Start writing the data as well
+        f = open("../data/k_" + str(centroids.shape[0]) + "_data.csv", "w")
+        f.write("year,group,pixel_position_encoding_x,pixel_position_encoding_y,crbn_dioxide,methane,ntrs_oxide,srfce_tmp\n")
+        #f.write("year,group,pixel_position_encoding,crbn_dioxide,methane,ntrs_oxide,srfce_tmp\n")
+
+        #Run through all the images and generate the dataset
+        basepath = '../images/'
+        with os.scandir(basepath) as entries:
+            for entry in entries:
+                if entry.is_file():
+                    if (entry.name != ".DS_Store"):
+                        year = entry.name.split('.')[0].split('_')[-1]
+                        image_name = basepath + entry.name
+
+                        year_csv_value = str(df_cs[(df_cs[:,0] == int(year)).nonzero()][0,1])
+                        year_csv_value = year_csv_value + ',' + str(df_mt[(df_mt[:,0] == int(year)).nonzero()][0,1])
+                        year_csv_value = year_csv_value + ',' + str(df_ntrs[(df_ntrs[:,0] == int(year)).nonzero()][0,1])
+                        year_csv_value = year_csv_value + ',' + str(df_st[(df_st[:,0] == int(year)).nonzero()][0,1])
+
+                        # Load next image image
+                        image = np.copy(mpimg.imread(image_name))
+                        image.setflags(write=1)
+                        print('[INFO] Loaded large image with shape: {}'.format(np.shape(image)))
+                        plt.figure(figure_idx)
+                        figure_idx += 1
+                        plt.imshow(image)
+                        plt.title('Original large image')
+                        plt.axis('off')
+                        savepath = os.path.join('.', 'orig_large.png')
+                        plt.savefig(fname=savepath, transparent=True, format='png', bbox_inches='tight')
+
+                        # Update large image with centroids calculated on small image
+                        print(25 * '=')
+                        print('Updating large image ...' + image_name)
+                        print(25 * '=')
+                        image_clustered = generate_image_and_data(image, centroids, image_name, year, year_csv_value, f)
+
+                        plt.figure(figure_idx)
+                        figure_idx += 1
+                        plt.imshow(image_clustered)
+                        plt.title('Updated large image')
+                        plt.axis('off')
+                        savepath = os.path.join('.', 'k_'+ str(num_clusters) + '_' + year + '_updated_large_' + base_year + '_base.png')
+                        plt.savefig(fname=savepath, transparent=True, format='png', bbox_inches='tight')
+
+        f.close()
+        #Save the centroids
+        np.savetxt("../data/k_" + str(centroids.shape[0]) + "_centroids_rgb_values.dat", centroids)
+    else:
+        df_pred = pd.read_csv('../emmissions_data/predicted_ghg_values.csv').to_numpy()
+        df_images = pd.read_csv('~/Downloads/k_4_data.csv')
+
+        #Start writing the data as well
+        f = open("../data/k_predictions_data.csv", "w")
+        f.write("year,group,pixel_position_encoding,crbn_dioxide,methane,ntrs_oxide,srfce_tmp\n")
+
+        finalData = None
+        #loop through the years
+        for i in range(df_pred.shape[0]):
+            print(df_images[df_images['year']==df_pred[i,0]])
+            df_curr = df_images[df_images['year']==df_pred[i,0]].to_numpy()
+            data = df_curr[:,0:3]
+            data = np.append(data, np.tile(df_pred[i,1:], (data.shape[0],1)),1)
+            #data.tofile("../data/k_4_" + str(int(df_pred[i,0])) +  "_predictions_data.csv", sep = ',')
+            for i in range(data.shape[0]):
+                line = f'{data[i,0]},{int(data[i,1])},{data[i,2]},{data[i,3]},{data[i,4]},{data[i,5]},{data[i,6]}\n'
+                f.write(line)
+
+        f.close()
+
+
 
     print('\nCOMPLETE')
 
