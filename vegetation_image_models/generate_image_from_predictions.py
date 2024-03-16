@@ -141,9 +141,9 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_path', default='../data/k_predictions_data_final.txt',
+    parser.add_argument('--data_path', default='../data/k_4_prediction_Mar12.txt',
                         help='Path to prediction file')
-    parser.add_argument('--centroids_path', default='../data/k_4_centroids_rgb_values.dat',
+    parser.add_argument('--centroids_path', default='../data/k_4_centroids_rgb_values_Mar12.dat',
                         help='Path to centroids file')
     args = parser.parse_args()
     main(args)
