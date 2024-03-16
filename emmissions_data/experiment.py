@@ -85,9 +85,8 @@ def experiment(train_paths: dict, eval_paths: dict, lambds: list, ks: list) -> d
     :param ks:
     :return:
     """
-    # 18x4
     results = {}
-    figure, axis = plt.subplots(1, 4, figsize=(18, 4))
+    # figure, axis = plt.subplots(1, 4, figsize=(18, 4))
     iteration = 0
     for ghg, train_path in train_paths.items():
         results[ghg] = {}
@@ -97,42 +96,6 @@ def experiment(train_paths: dict, eval_paths: dict, lambds: list, ks: list) -> d
         lowest_mape = (None, None, None, None)
         mses = []
         mapes = []
-
-        # iteration = 0
-        # figure, axis = plt.subplots(2, 6, figsize=(18, 8))
-        # for lambd in lambds:
-        #     mses = []
-        #     mapes = []
-        #
-        #     for k in ks:
-        #         # Fit the model
-        #         lm = LinearModel(lambd)
-        #         lm.fit(lm.create_poly(k, train_x), train_y)
-        #         predictions = lm.predict(lm.create_poly(k, eval_x))
-        #
-        #         mse = get_mse(eval_y, predictions)
-        #         mses.append(mse)
-        #         mape = get_mape(eval_y, predictions)
-        #         mapes.append(mape)
-        #
-        #         if lowest_mse[2] is None or mse < lowest_mse[2]:
-        #             lowest_mse = lambd, k, mse, mape
-        #         if lowest_mape[3] is None or mape < lowest_mape[3]:
-        #             lowest_mape = lambd, k, mse, mape
-
-            # # Plot the results
-            # plot = axis[0, iteration]
-            # plot.plot(ks, mses)
-            # plot.plot(lowest_mse[1], lowest_mse[2], 'g*', label="Lowest MSE = " + str(round(lowest_mse[2], 3)))
-            # plot.set_title("MSE vs k for lambda=" + str(lambd))
-            # plot.legend()
-            # plot = axis[1, iteration]
-            # plot.plot(ks, mapes)
-            # plot.plot(lowest_mape[1], lowest_mape[3], 'g*', label="Lowest MAPE = " + str(round(lowest_mape[3], 3)))
-            # plot.set_title("MAPE vs k for lambd=" + str(lambd))
-            # plot.legend()
-            # plt.savefig(ghg + " Polynominal Regression Experiment Results.png")
-            # iteration += 1
 
         for k in ks:
             lm = LinearModel()
