@@ -102,7 +102,7 @@ def main(lr, data_path, pred_path, start_year, total_years):
 
     
     y_predict = np.append(np.reshape(test_y[:,0], (test_y.shape[0],1)), np.reshape(model.predict(test_x),(test_y.shape[0],1)), 1).astype(int)
-    np.savetxt('../data/k_' + str(number_of_groups) + '_prediction_mar18.txt', y_predict, delimiter=",")
+    np.savetxt('../data/k_' + str(number_of_groups) + '_prediction_mar19.txt', y_predict, delimiter=",")
 
     if type != "xgboost":
         cm = confusion_matrix(test_y[:,1], y_predict[:,1])
