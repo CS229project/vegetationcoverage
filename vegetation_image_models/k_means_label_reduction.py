@@ -6,6 +6,7 @@ import numpy as np
 import os
 import random
 import pandas as pd
+from skimage import io, transform
 
 
 def init_centroids(num_clusters, image):
@@ -113,9 +114,24 @@ def update_centroids(centroids, image, max_iter=30, print_every=10):
 
     return new_centroids
 
-def generate_data_using_centroids(pred_path, centroids):
 
-    return False
+def get_one_hot_vector(number_of_groups, y):
+    #print(y.shape)
+    #print(number_of_groups)
+    one_hot_y = np.zeros((y.shape[0], number_of_groups+1))
+    one_hot_y[np.arange(y.shape[0]).astype(int), y.astype(int)] = 1
+    return one_hot_y
+
+
+def getPositionEncoding(seq_len, d, n=10000):
+    P = np.zeros((seq_len, d))
+    for k in range(seq_len):
+        for i in np.arange(int(d/2)):
+            denominator = np.power(n, 2*i/d)
+            P[k, 2*i] = np.sin(k/denominator)
+            P[k, 2*i+1] = np.cos(k/denominator)
+    return P
+
 
 def generate_image_and_data(image, centroids, image_name, year, year_csv_value, f):
     """
@@ -155,24 +171,35 @@ def generate_image_and_data(image, centroids, image_name, year, year_csv_value, 
 
     
     total_pixels = image.shape[0]*image.shape[1]
+    pixel_position_encodings =  getPositionEncoding(total_pixels, d=64, n=10000)
+    print(pixel_position_encodings.shape)
     for i in range(pixels_group.shape[0]):
         for j in range(pixels_group.shape[1]):
             image[i,j] = centroids[pixels_group[i,j,0]]
             
             #Write the labels and the positional data
             pixel_position = (i+1)*(j+1)
-            encoding = np.sin(pixel_position*np.pi*((2*total_pixels)**-1)) #Positional encoding from 0 to 1 using sin
+            #encoding = np.sin(pixel_position*np.pi*((2*total_pixels)**-1)) #Positional encoding from 0 to 1 using sin
             #encoding = pixel_position #Positional encoding from 0 to 1 using sin
             #encoding = f'{str(i+1)},{str(j+1)}'
+            
+            ####Cosine Encoding
+            encoding = ','.join(str(encoding) for encoding in pixel_position_encodings[pixel_position-1, :])
+
+            ####One Hot encoding
+            #one_hot = get_one_hot_vector(total_pixels, np.array([pixel_position-1]))
+            #encoding = ','.join(str(val) for val in one_hot[0])
+            #print(encoding + '\n')
 
             f.write(f'{year},{str(pixels_group[i,j,0])},{str(encoding)},{year_csv_value}\n')
-
+            #print(f'{year},{str(pixels_group[i,j,0])},{str(encoding)},{year_csv_value}\n')
     return image
 
 
 def main(args):
 
-    data_gen_from_scratch = False
+    data_gen_from_scratch = True
+    compression_factor = 1/3 
 
     if data_gen_from_scratch:
 
@@ -205,6 +232,8 @@ def main(args):
 
         # Load small image
         image = np.copy(mpimg.imread(image_path_small))
+        image = transform.rescale(image, scale=(compression_factor,compression_factor,1))
+        print(image.shape)
         print('[INFO] Loaded small image with shape: {}'.format(np.shape(image)))
         plt.figure(figure_idx)
         figure_idx += 1
@@ -240,7 +269,10 @@ def main(args):
         centroids = update_centroids(centroids_init, image, max_iter, print_every)
 
         # Load large image
+        #image = np.copy(mpimg.imread(image_path_large))
         image = np.copy(mpimg.imread(image_path_large))
+        image = transform.rescale(image, scale=(compression_factor,compression_factor,1))
+        total_pixels = image.shape[0]*image.shape[1]
         image.setflags(write=1)
         print('[INFO] Loaded large image with shape: {}'.format(np.shape(image)))
         plt.figure(figure_idx)
@@ -254,9 +286,16 @@ def main(args):
 
 
         #Start writing the data as well
-        f = open("../data/k_" + str(centroids.shape[0]) + "_data.csv", "w")
-        f.write("year,group,pixel_position_encoding_x,pixel_position_encoding_y,crbn_dioxide,methane,ntrs_oxide,srfce_tmp\n")
+        f = open("../data/k_" + str(centroids.shape[0]) + "_Mar19_data_cosine_" + str(image.shape[0]) + "_" + str(image.shape[1]) + ".csv", "w")
+        #f.write("year,group,pixel_position_encoding_x,pixel_position_encoding_y,crbn_dioxide,methane,ntrs_oxide,srfce_tmp\n")
         #f.write("year,group,pixel_position_encoding,crbn_dioxide,methane,ntrs_oxide,srfce_tmp\n")
+        columns = ''
+        total_pixels = image.shape[0]*image.shape[1]
+        for i in range(total_pixels):
+            columns = columns + 'pixeloh_' + str(i) + ','
+        header = f'year,group,{columns}crbn_dioxide,methane,ntrs_oxide,srfce_tmp\n'
+        #f.write("year,group,pixel_position_encoding_0,pixel_position_encoding_1,pixel_position_encoding_2,pixel_position_encoding_3,pixel_position_encoding_4,pixel_position_encoding_5,pixel_position_encoding_6,pixel_position_encoding_7,pixel_position_encoding_8,pixel_position_encoding_9,pixel_position_encoding_10,pixel_position_encoding_11,pixel_position_encoding_12,pixel_position_encoding_13,pixel_position_encoding_14,pixel_position_encoding_15,crbn_dioxide,methane,ntrs_oxide,srfce_tmp\n")
+        f.write(header)
 
         #Run through all the images and generate the dataset
         basepath = '../images/'
@@ -273,7 +312,9 @@ def main(args):
                         year_csv_value = year_csv_value + ',' + str(df_st[(df_st[:,0] == int(year)).nonzero()][0,1])
 
                         # Load next image image
+                        print(image_name)
                         image = np.copy(mpimg.imread(image_name))
+                        image = transform.rescale(image, scale=(compression_factor,compression_factor,1))
                         image.setflags(write=1)
                         print('[INFO] Loaded large image with shape: {}'.format(np.shape(image)))
                         plt.figure(figure_idx)
@@ -300,14 +341,14 @@ def main(args):
 
         f.close()
         #Save the centroids
-        np.savetxt("../data/k_" + str(centroids.shape[0]) + "_centroids_rgb_values.dat", centroids)
+        np.savetxt("../data/k_" + str(centroids.shape[0]) + "_centroids_rgb_values_Mar19_" + str(compression_factor**-1) + ".dat", centroids)
     else:
         df_pred = pd.read_csv('../emmissions_data/predicted_ghg_values.csv').to_numpy()
         df_images = pd.read_csv('~/Downloads/k_4_data_Mar12.csv')
 
         #Start writing the data as well
         f = open("../data/k_4_prediction_Mar12.txt", "w")
-        f.write("year,group,pixel_position_encoding,crbn_dioxide,methane,ntrs_oxide,srfce_tmp\n")
+        f.write("year,group,pixel_position_encoding_0,pixel_position_encoding_1,pixel_position_encoding_2,pixel_position_encoding_3,pixel_position_encoding_4,pixel_position_encoding_5,pixel_position_encoding_6,pixel_position_encoding_7,crbn_dioxide,methane,ntrs_oxide,srfce_tmp\n")
 
         finalData = None
         #loop through the years

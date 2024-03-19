@@ -68,10 +68,6 @@ def generate_image_from_data(image, centroids, prediction_file_name):
     elif pred_type == 0:
         preds = pd.read_csv(prediction_file_name)
 
-        #81790
-        row = image.shape[0]
-        col = image.shape[1]
-
         years = np.unique(preds['year'].to_numpy())
         num_of_images = years.shape[0]
 
@@ -79,23 +75,23 @@ def generate_image_from_data(image, centroids, prediction_file_name):
             print(f'Generating image {years[k]}')
             pixels_group = preds[preds['year']==years[k]]
             print(pixels_group)
-            #print(pixels_group)
             pixels_group = pixels_group['group'].to_numpy()
             print(pixels_group.shape)
             pixels_group = np.reshape(pixels_group,(image.shape[0],image.shape[1]))
-            print(pixels_group)
+            print(pixels_group.shape)
 
             #curr_pred = preds[preds[:,0] == years[k]]
             for i in range(pixels_group.shape[0]):
                 for j in range(pixels_group.shape[1]):
-                    image[i,j] = centroids[pixels_group[i,j]]
+                    #print(pixels_group[i,j])
+                    image[i,j] = centroids[int(pixels_group[i,j])]
             plt.figure(k)
-            plt.imshow(image/255)
+            plt.imshow(image)
             plt.title('Updated large image')
             plt.axis('off')
             savepath = os.path.join('.', 'k_'+ str(int(years[k])) + '_prediction.png')
             plt.savefig(fname=savepath, transparent=True, format='png', bbox_inches='tight')
-            image = np.zeros((254,322,3))
+            image = np.zeros((image.shape[0],image.shape[1],image.shape[2]))
 
 
 
@@ -105,7 +101,10 @@ def generate_image_from_data(image, centroids, prediction_file_name):
 def main(args):
 
     # Initialize image to be all black pixels
-    image = np.zeros((254,322,3))
+    #image = np.zeros((254,322,3))
+    #image = np.zeros((51,64,3))
+    image = np.zeros((85,107,3))
+
 
     # Setup
     prediction_file_name = args.data_path
@@ -141,9 +140,9 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_path', default='../data/k_4_prediction_Mar12.txt',
+    parser.add_argument('--data_path', default='../data/k_4_prediction_mar18.txt',
                         help='Path to prediction file')
-    parser.add_argument('--centroids_path', default='../data/k_4_centroids_rgb_values_Mar12.dat',
+    parser.add_argument('--centroids_path', default='../data/k_4_centroids_rgb_values_Mar18_3.0.dat',
                         help='Path to centroids file')
     args = parser.parse_args()
     main(args)

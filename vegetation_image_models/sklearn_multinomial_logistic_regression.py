@@ -6,7 +6,9 @@ import os
 import random
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.metrics import confusion_matrix, accuracy_score
+import xgboost as xgb
 
 def get_one_hot_vector(number_of_groups, y):
     #print(y.shape)
@@ -30,6 +32,8 @@ def main(lr, data_path, pred_path, start_year, total_years):
     train_split = 0.8
     eval_split = 0.1
 
+    type="xgboost"
+
     train_set=np.random.choice(total_set, size=int(total_years*train_split), replace=False)
     eval_test_set = np.setdiff1d(total_set, train_set)
     eval_set = np.random.choice(eval_test_set, size=int(total_years*eval_split), replace=False)
@@ -50,26 +54,30 @@ def main(lr, data_path, pred_path, start_year, total_years):
     #Feature engineering
     #No feature engineering
 
-    print(int(np.max(train_data[:, 2])))
-    print(int(np.max(train_data[:, 3])))
+    #print(int(np.max(train_data[:, 2])))
+    #print(int(np.max(train_data[:, 3])))
     train_x = train_data[:, 2:]
+    print(train_x.shape)
     #print(train_x)
     #one_train_x = get_one_hot_vector(int(np.max(train_data[:, 2])),train_data[:, 2].astype(int))
     #one_train_y = get_one_hot_vector(int(np.max(train_data[:, 3])),train_data[:, 3].astype(int))
     #one_hot_image = np.append(one_train_x, one_train_y,1)
     #train_x = np.append(one_hot_image, train_x[:, 2:],1)
+    #train_x = one_hot_image
 
     eval_x = eval_data[:, 2:]
     #one_eval_x = get_one_hot_vector(int(np.max(eval_data[:, 2])),eval_data[:, 2].astype(int))
     #one_eval_y = get_one_hot_vector(int(np.max(eval_data[:, 3])),eval_data[:, 3].astype(int))
     #one_hot_image = np.append(one_eval_x, one_eval_y,1)
     #eval_x = np.append(one_hot_image, eval_x[:, 2:],1)
+    #eval_x = one_hot_image
 
     test_x = test_data[:, 2:]
     #one_test_x = get_one_hot_vector(int(np.max(test_data[:, 2])),test_data[:, 2].astype(int))
     #one_test_y = get_one_hot_vector(int(np.max(test_data[:, 3])),test_data[:, 3].astype(int))
     #one_hot_image = np.append(one_test_x, one_test_y,1)
     #test_x = np.append(one_hot_image, test_x[:, 2:],1)
+    #test_x = one_hot_image
 
     print(train_x.shape)
     print(eval_x.shape)
@@ -84,19 +92,27 @@ def main(lr, data_path, pred_path, start_year, total_years):
 
 
     # Fit a Multimodal Regression model
-    model = LogisticRegression(penalty='l2', multi_class='multinomial', class_weight='balanced', random_state=0, max_iter=10000, n_jobs=-2, verbose=1).fit(train_x, train_y[:,1])
-    
-    y_predict = np.append(np.reshape(test_y[:,0], (test_y.shape[0],1)), np.reshape(model.predict(test_x),(test_y.shape[0],1)), 1)
-    np.savetxt('../data/k_' + str(number_of_groups) + '_prediction_mar15.txt', y_predict)
+    if type == "xgboost":
+        model = xgb.XGBRegressor(objective="reg:linear", random_state=42, verbosity=1, max_depth=30)
+        model.fit(train_x, train_y[:,1])
+    else:
+        #model = LogisticRegression(penalty='l2', multi_class='multinomial', class_weight='balanced', random_state=0, max_iter=1000, tol=0.00000001, n_jobs=-2, verbose=1).fit(train_x, train_y[:,1])
+        model = GradientBoostingClassifier(n_estimators=400, learning_rate=0.1, max_depth=100, random_state=0, verbose=1).fit(train_x, train_y[:,1])
+        model.score(eval_x, eval_y[:,1])
 
-    cm = confusion_matrix(test_y[:,1], y_predict[:,1])
-    print(f'tn: {cm[0, 0]}, fp: {cm[0, 1]}, fn: {cm[1, 0]}, tp: {cm[1, 1]}')
-    print(f'Accuracy Score: {accuracy_score(test_y[:,1], y_predict[:,1])}')
+    
+    y_predict = np.append(np.reshape(test_y[:,0], (test_y.shape[0],1)), np.reshape(model.predict(test_x),(test_y.shape[0],1)), 1).astype(int)
+    np.savetxt('../data/k_' + str(number_of_groups) + '_prediction_mar18.txt', y_predict, delimiter=",")
+
+    if type != "xgboost":
+        cm = confusion_matrix(test_y[:,1], y_predict[:,1])
+        print(f'tn: {cm[0, 0]}, fp: {cm[0, 1]}, fn: {cm[1, 0]}, tp: {cm[1, 1]}')
+        print(f'Accuracy Score: {accuracy_score(test_y[:,1], y_predict[:,1])}')
 
  
 if __name__ == '__main__':
     main(lr=1,
-        data_path='~/Downloads/k_4_data.csv',
+        data_path='~/Downloads/k_4_Mar18_data_cosine_85_107.csv',
         pred_path='../data/predictions.csv',
         start_year=2001,
         total_years=21)
