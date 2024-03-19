@@ -171,7 +171,7 @@ def generate_image_and_data(image, centroids, image_name, year, year_csv_value, 
 
     
     total_pixels = image.shape[0]*image.shape[1]
-    pixel_position_encodings =  getPositionEncoding(total_pixels, d=64, n=10000)
+    pixel_position_encodings =  getPositionEncoding(total_pixels, d=128, n=10000)
     print(pixel_position_encodings.shape)
     for i in range(pixels_group.shape[0]):
         for j in range(pixels_group.shape[1]):

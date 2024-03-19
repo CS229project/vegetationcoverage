@@ -93,7 +93,7 @@ def main(lr, data_path, pred_path, start_year, total_years):
 
     # Fit a Multimodal Regression model
     if type == "xgboost":
-        model = xgb.XGBRegressor(objective="reg:linear", random_state=42, verbosity=1, max_depth=30)
+        model = xgb.XGBRegressor(objective="reg:linear", random_state=42, verbosity=1, max_depth=100)
         model.fit(train_x, train_y[:,1])
     else:
         #model = LogisticRegression(penalty='l2', multi_class='multinomial', class_weight='balanced', random_state=0, max_iter=1000, tol=0.00000001, n_jobs=-2, verbose=1).fit(train_x, train_y[:,1])
@@ -112,7 +112,7 @@ def main(lr, data_path, pred_path, start_year, total_years):
  
 if __name__ == '__main__':
     main(lr=1,
-        data_path='~/Downloads/k_4_Mar18_data_cosine_85_107.csv',
+        data_path='~/Downloads/k_4_Mar19_data_cosine_85_107.csv',
         pred_path='../data/predictions.csv',
         start_year=2001,
         total_years=21)
